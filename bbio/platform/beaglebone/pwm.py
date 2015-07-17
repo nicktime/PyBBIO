@@ -5,6 +5,7 @@
 # 
 # Beaglebone PWM driver for kernel >= 3.8
 
+from __future__ import division
 from bbio.platform.beaglebone import cape_manager
 from bbio.platform.util import sysfs
 from bbio.common import delay, addToCleanup
@@ -59,21 +60,19 @@ def pwmFrequency(pwm_pin, freq_hz):
   pin_config = PWM_PINS[pwm_pin]
   helper_path = pin_config[1]
 
-  old_duty_ns = int(sysfs.kernelFileIO('%s/%s' % (helper_path, PWM_DUTY)))
-  old_period_ns = int(sysfs.kernelFileIO('%s/%s' % (helper_path, PWM_PERIOD)))
-
-  duty_percent = old_duty_ns / old_period_ns
   new_period_ns = int(1e9/freq_hz)
-  # Todo: round values properly!:
-  new_duty_ns = int(duty_percent * new_period_ns)
+  new_duty_ns = int(round(0.5 * new_period_ns))
 
-  try: 
+  try:
+    sysfs.kernelFileIO('%s/%s' % (helper_path, PWM_RUN), '0')
     # Duty cyle must be set to 0 before changing frequency:
     sysfs.kernelFileIO('%s/%s' % (helper_path, PWM_DUTY), '0')
+    sysfs.kernelFileIO('%s/%s' % (helper_path, PWM_POLARITY), '0')
     # Set new frequency:
     sysfs.kernelFileIO('%s/%s' % (helper_path, PWM_PERIOD), str(new_period_ns))
     # Set the duty cycle:
     sysfs.kernelFileIO('%s/%s' % (helper_path, PWM_DUTY), str(new_duty_ns))
+    sysfs.kernelFileIO('%s/%s' % (helper_path, PWM_RUN), '1')
   except IOError:
     print "*PWM pin '%s' reserved by another process!" % pwm_pin
     # that's probably not the best way to handle this error...
